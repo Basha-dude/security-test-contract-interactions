@@ -18,10 +18,10 @@ contract SavingsAccountV2 {
          console.log("RentraancyAttacker's balance:", balanceOf[msg.sender]);
             
         uint256 amountDeposited = balanceOf[msg.sender];
-       
+        balanceOf[msg.sender] = 0;
          payable(msg.sender).sendValue(amountDeposited);
         
-         balanceOf[msg.sender] = 0;
+         
         
 
     }
