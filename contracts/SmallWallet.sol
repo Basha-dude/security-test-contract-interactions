@@ -11,7 +11,7 @@ contract SmallWallet  {
   }
 
      function withdrawAll(address _recipient) external{
-         require(tx.origin == owner,"Caller not authorised");
+         require(msg.sender == owner,"Caller not authorised");
          payable(_recipient).transfer(address(this).balance);
 
     }
