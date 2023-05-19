@@ -2,50 +2,67 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 
-describe("Tx-origin", function () {
+describe("DoS", function () {
   let deployer, attacker, user
    beforeEach(async () => {
 
     [deployer,attacker, user ] = await ethers.getSigners();
 
-    const SmallWallet = await ethers.getContractFactory("SmallWallet",deployer);
-    this.smallWallet = await SmallWallet.deploy();
+    const Auction = await ethers.getContractFactory("Auction",deployer);
+    this.auction = await Auction.deploy();
 
-    await deployer.sendTransaction({to: this.smallWallet.address, value:10000})
+    this.auction.bid({ value:100});
 
    
    
-    const AttackerContract = await ethers.getContractFactory("Attacker",attacker);
-    this.attackerContract = await AttackerContract.deploy(this.smallWallet.address);
+    
 
    })
-    describe('Small Wallet', () => { 
-      it("should accepts deposite",async() => {
-        expect(await ethers.provider.getBalance(this.smallWallet.address)).to.eq(10000)
-      })
-      it("should allow the owner to execute withdrawl",async() => {
-       const intialUserBalance = await ethers.provider.getBalance(user.address);
-       await this.smallWallet.withdrawAll(user.address);
-       expect(await ethers.provider.getBalance(this.smallWallet.address)).to.eq(0)
-       expect(await ethers.provider.getBalance(user.address)).to.eq(intialUserBalance.add(10000))
-      })
-      it("should revert when anyone calls the withdrawl except owner ",async() => {
-        await expect( this.smallWallet.connect(attacker).withdrawAll(attacker.address)).to.revertedWith("Caller not authorised")
-      })
-      
+    describe('Auction', () => { 
+      it("If bid is the lower than the highest bid",async() => {
+      await expect( this.auction.connect(user).bid({value :50})).to.be.revertedWith("bid not high enough")
     })
-    describe('Attack', () => { 
-      it("should drain the victim out if small wallet's owner sends ether",async () => {
-        const intialAttackerBalance  =await ethers.provider.getBalance(attacker.address);
-        await deployer.sendTransaction({to:this.attackerContract.address,value:1})
-        expect(await ethers.provider.getBalance(this.smallWallet.address)).to.eq(0)
-        expect(await ethers.provider.getBalance(attacker.address)).to.eq(intialAttackerBalance.add(10000))
+    })
+
+
+    describe('If bid is higher than the highest bid' , () => { 
+      it(" is should accept it and update the higest bid",async () => {
+        await  this.auction.connect(user).bid({value :150});
+        expect(await this.auction.highestBid()).to.eq(150)
+       
+      })
+      it(" is should make the msg.sender as the current leader",async () => {
+        await  this.auction.connect(user).bid({value :150});
+        expect(await this.auction.currentLeader()).to.eq(user.address)
+       
+      })
+      it(" it should previou  currentleader and highest bid to refunds ",async () => {
+        await  this.auction.connect(user).bid({value :150});
+       
+          [addr,amount ] = await this.auction.refunds(0);
+        expect(addr).to.eq(deployer.address);
+        expect(amount).to.eq(100);
       })
      })
+     describe('When callin the refund all ', () => { 
+       it("should refund the bidders that did'nt win",async() => {
+        await  this.auction.connect(user).bid({value :150});
+        await this.auction.bid({ value:200});
+        const userBalanceBefore = await ethers.provider.getBalance(user.address);
+        await this.auction.refundAll();
+        const userBalanceAfter = await ethers.provider.getBalance(user.address);
+        expect( userBalanceAfter).to.eq(userBalanceBefore.add(150))
+       })
+       it("  Should revert if the amount of computaion hits the  block gas limit",async () => {
+        await  this.auction.connect(user).bid({value :150});
+        expect(await this.auction.currentLeader()).to.eq(user.address)
+        await 
+      })
+      })
  
-
+    })
   
 
 
   
-   });
+  
