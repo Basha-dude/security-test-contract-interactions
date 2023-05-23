@@ -56,7 +56,7 @@ describe("DoS", function () {
        it("  Should revert if the amount of computaion hits the  block gas limit",async () => {
         await  this.auction.connect(user).bid({value :150});
         expect(await this.auction.currentLeader()).to.eq(user.address)
-        await 
+     
       })
       })
  
